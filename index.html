@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Moses Mining</title>
+
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+<style>
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  font-family:Arial,sans-serif;
+  background:#0d1117;
+  color:#fff;
+}
+
+.wrap{
+  max-width:520px;
+  margin:auto;
+  padding:18px;
+}
+
+.card{
+  background:#161b22;
+  border:1px solid #26303b;
+  border-radius:18px;
+  padding:18px;
+  margin-bottom:14px;
+}
+
+.top{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+
+.avatar{
+  width:48px;
+  height:48px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  background:#2f81f7;
+  font-weight:bold;
+}
+
+.muted{
+  color:#9da7b3;
+  font-size:14px;
+}
+
+.balance{
+  text-align:center;
+  padding:24px;
+}
+
+.num{
+  font-size:40px;
+  font-weight:800;
+  margin:8px 0;
+}
+
+button{
+  width:100%;
+  border:0;
+  border-radius:14px;
+  padding:15px;
+  font-size:16px;
+  font-weight:700;
+  background:#2f81f7;
+  color:#fff;
+}
+
+button:disabled{
+  opacity:.55;
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+}
+
+.stat{
+  background:#11161d;
+}
+
+.stat b{
+  display:block;
+  font-size:20px;
+  margin-top:6px;
+}
+
+.small{
+  font-size:12px;
+  color:#8b949e;
+  margin-top:10px;
+  line-height:1.4;
+}
+
+.task{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+}
+
+.task button{
+  width:auto;
+  padding:10px 14px;
+  font-size:14px;
+}
+
+select{
+  width:100%;
+  padding:14px;
+  margin:10px 0;
+  border-radius:12px;
+  border:1px solid #30363d;
+  background:#0d1117;
+  color:#fff;
+  font-size:16px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="wrap">
+
+  <div class="card top">
+    <div class="avatar" id="avatar">M</div>
+    <div>
+      <div id="name">Moses Mining</div>
+      <div class="muted">Points demo</div>
+    </div>
+  </div>
+
+  <div class="card balance">
+
+    <div class="muted">Your balance</div>
+
+    <div class="num">
+      <span id="balance">0</span> MP
+    </div>
+
+    <div class="muted" id="status">
+      Ready to start
+    </div>
+
+    <br>
+
+    <button id="mine">
+      Start Mining
+    </button>
+
+    <div class="small">
+      Demo points only. This is not cryptocurrency mining and does not promise cash rewards.
+    </div>
+
+  </div>
+
+  <div class="grid">
+
+    <div class="card stat">
+      <span class="muted">Mining rate</span>
+      <b>1 MP/min</b>
+    </div>
+
+    <div class="card stat">
+      <span class="muted">Referrals</span>
+      <b id="refs">0</b>
+    </div>
+
+  </div>
+
+  <div class="card">
+
+    <h3>Daily bonus</h3>
+
+    <p class="muted">
+      Claim 25 MP once per day.
+    </p>
+
+    <button id="bonus">
+      Claim bonus
+    </button>
+
+  </div>
+
+  <div class="card">
+
+    <h3>Tasks</h3>
+
+    <div class="task">
+
+      <div>
+        <b>Join our updates</b>
+        <div class="muted">Demo task</div>
+      </div>
+
+      <button id="task">
+        Claim 10
+      </button>
+
+    </div>
+
+  </div>
+
+  <div class="card">
+
+    <h3>Withdraw</h3>
+
+    <p class="muted">
+      Select an amount to make a demo withdrawal request.
+    </p>
+
+    <select id="withdrawAmount">
+      <option value="">Select amount</option>
+      <option value="100">100 MP</option>
+      <option value="250">250 MP</option>
+      <option value="500">500 MP</option>
+      <option value="1000">1,000 MP</option>
+      <option value="2500">2,500 MP</option>
+    </select>
+
+    <button id="withdraw">
+      Withdraw
+    </button>
+
+    <p id="withdrawMessage" class="small"></p>
+
+  </div>
+
+</div>
+
+<script>
+
+const tg = window.Telegram?.WebApp;
+
+if(tg){
+  tg.ready();
+  tg.expand();
+}
+
+const storageKey = "moses_mining_demo_v1";
+
+let state = JSON.parse(
+  localStorage.getItem(storageKey) ||
+  '{"balance":0,"refs":0,"lastBonus":0,"task":false,"mining":false,"lastTick":0}'
+);
+
+const user = tg?.initDataUnsafe?.user;
+
+if(user){
+
+  document.getElementById("name").textContent =
+    user.first_name || "Telegram user";
+
+  document.getElementById("avatar").textContent =
+    (user.first_name || "M")[0].toUpperCase();
+
+}
+
+function save(){
+
+  localStorage.setItem(
+    storageKey,
+    JSON.stringify(state)
+  );
+
+}
+
+function render(){
+
+  document.getElementById("balance").textContent =
+    Math.floor(state.balance);
+
+  document.getElementById("refs").textContent =
+    state.refs;
+
+  document.getElementById("mine").textContent =
+    state.mining
+    ? "Mining... Stop"
+    : "Start Mining";
+
+  document.getElementById("status").textContent =
+    state.mining
+    ? "Mining 1 MP per minute"
+    : "Ready to start";
+
+  const claimedToday =
+    new Date().toDateString() ===
+    new Date(state.lastBonus).toDateString();
+
+  document.getElementById("bonus").disabled =
+    claimedToday;
+
+  document.getElementById("bonus").textContent =
+    claimedToday
+    ? "Bonus claimed"
+    : "Claim bonus";
+
+  document.getElementById("task").disabled =
+    state.task;
+
+  document.getElementById("task").textContent =
+    state.task
+    ? "Claimed"
+    : "Claim 10";
+
+}
+
+document.getElementById("mine").onclick = function(){
+
+  state.mining = !state.mining;
+
+  state.lastTick = Date.now();
+
+  save();
+
+  render();
+
+};
+
+document.getElementById("bonus").onclick = function(){
+
+  if(
+    new Date().toDateString() !==
+    new Date(state.lastBonus).toDateString()
+  ){
+
+    state.balance += 25;
+
+    state.lastBonus = Date.now();
+
+    save();
+
+    render();
+
+  }
+
+};
+
+document.getElementById("task").onclick = function(){
+
+  if(!state.task){
+
+    state.balance += 10;
+
+    state.task = true;
+
+    save();
+
+    render();
+
+  }
+
+};
+
+document.getElementById("withdraw").onclick = function(){
+
+  const amount =
+    document.getElementById("withdrawAmount").value;
+
+  const message =
+    document.getElementById("withdrawMessage");
+
+  if(!amount){
+
+    message.textContent =
+      "Please select an amount first.";
+
+    return;
+
+  }
+
+  message.textContent =
+    "Withdrawal is not available in this demo.";
+
+};
+
+setInterval(function(){
+
+  if(state.mining){
+
+    const now = Date.now();
+
+    const elapsed =
+      now - (state.lastTick || now);
+
+    if(elapsed >= 60000){
+
+      state.balance +=
+        Math.floor(elapsed / 60000);
+
+      state.lastTick = now;
+
+      save();
+
+      render();
+
+    }
+
+  }
+
+},1000);
+
+render();
+
+</script>
+
+</body>
+</html>
